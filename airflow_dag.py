@@ -91,7 +91,7 @@ with DAG(
     default_args=default_args,
     description='ETL pipeline for Trustpilot reviews',
     schedule='@daily',
-    start_date=datetime(2025, 12, 1),
+    start_date=datetime(2025, 12, 3),
     catchup=False,
     tags=['trustpilot', 'etl', 'reviews'],
 ) as dag:
