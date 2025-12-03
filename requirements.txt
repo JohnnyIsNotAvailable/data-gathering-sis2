@@ -1,0 +1,4 @@
+playwright>=1.40.0
+pandas>=2.0.0
+pandera>=0.18.0
+apache-airflow>=2.7.0
