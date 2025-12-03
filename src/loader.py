@@ -1,24 +1,12 @@
-"""
-SQLite Loader for Trustpilot Reviews
-
-This module loads cleaned review data into a SQLite database.
-"""
-
 import json
 import logging
 import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-# SQL schema for the reviews table
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +21,6 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 """
 
-# Index for faster queries
 CREATE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
 CREATE INDEX IF NOT EXISTS idx_reviews_date ON reviews(date);
@@ -47,43 +34,30 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 
 
 class ReviewLoader:
-    """Loader for inserting review data into SQLite database."""
 
     def __init__(self, db_path: str):
-        """
-        Initialize the loader.
-
-        Args:
-            db_path: Path to the SQLite database file
-        """
         self.db_path = Path(db_path)
         self.conn = None
 
     def connect(self) -> None:
-        """Establish connection to the database."""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
         logger.info(f"Connected to database: {self.db_path}")
 
     def close(self) -> None:
-        """Close the database connection."""
         if self.conn:
             self.conn.close()
             self.conn = None
             logger.info("Database connection closed")
 
     def create_table(self) -> None:
-        """Create the reviews table if it doesn't exist."""
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
         cursor = self.conn.cursor()
-
-        # Create table
         cursor.execute(CREATE_TABLE_SQL)
 
-        # Create indexes
         for index_sql in CREATE_INDEX_SQL.strip().split(';'):
             if index_sql.strip():
                 cursor.execute(index_sql)
@@ -92,36 +66,16 @@ class ReviewLoader:
         logger.info("Reviews table and indexes created")
 
     def load_from_json(self, json_path: str) -> int:
-        """
-        Load reviews from a JSON file into the database.
-
-        Args:
-            json_path: Path to the cleaned reviews JSON file
-
-        Returns:
-            Number of records inserted
-        """
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
-        # Load JSON data
         with open(json_path, 'r', encoding='utf-8') as f:
             reviews = json.load(f)
 
         logger.info(f"Loaded {len(reviews)} reviews from {json_path}")
-
         return self.insert_reviews(reviews)
 
     def insert_reviews(self, reviews: List[Dict[str, Any]]) -> int:
-        """
-        Insert multiple reviews into the database.
-
-        Args:
-            reviews: List of review dictionaries
-
-        Returns:
-            Number of records inserted
-        """
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
@@ -148,7 +102,6 @@ class ReviewLoader:
         return inserted
 
     def get_record_count(self) -> int:
-        """Get the total number of records in the reviews table."""
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
@@ -157,7 +110,6 @@ class ReviewLoader:
         return cursor.fetchone()[0]
 
     def get_rating_distribution(self) -> Dict[int, int]:
-        """Get the distribution of ratings."""
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
@@ -171,7 +123,6 @@ class ReviewLoader:
         return {row['rating']: row['count'] for row in cursor.fetchall()}
 
     def get_sample_reviews(self, limit: int = 5) -> List[Dict]:
-        """Get sample reviews from the database."""
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
@@ -180,28 +131,22 @@ class ReviewLoader:
         return [dict(row) for row in cursor.fetchall()]
 
     def get_summary(self) -> Dict[str, Any]:
-        """Get summary statistics from the database."""
         if not self.conn:
             raise ConnectionError("Database not connected. Call connect() first.")
 
         cursor = self.conn.cursor()
 
-        # Total count
         cursor.execute("SELECT COUNT(*) FROM reviews")
         total = cursor.fetchone()[0]
 
-        # Rating distribution
         rating_dist = self.get_rating_distribution()
 
-        # Average rating
         cursor.execute("SELECT AVG(rating) FROM reviews")
         avg_rating = round(cursor.fetchone()[0], 2)
 
-        # Verified count
         cursor.execute("SELECT COUNT(*) FROM reviews WHERE is_verified = 1")
         verified = cursor.fetchone()[0]
 
-        # Date range
         cursor.execute("SELECT MIN(date), MAX(date) FROM reviews")
         date_row = cursor.fetchone()
 
@@ -218,25 +163,19 @@ class ReviewLoader:
 
 
 def main():
-    """Main function to run the loader."""
-    # Configuration
     base_path = Path(__file__).parent.parent / "data"
     json_path = base_path / "cleaned_reviews.json"
     db_path = base_path / "reviews.db"
 
-    # Initialize loader
     loader = ReviewLoader(str(db_path))
 
     try:
-        # Connect and setup
         loader.connect()
         loader.create_table()
 
-        # Load data
         logger.info(f"Loading data from {json_path}")
         inserted = loader.load_from_json(str(json_path))
 
-        # Print summary
         summary = loader.get_summary()
         print("\n" + "=" * 50)
         print("LOADING SUMMARY")
@@ -251,7 +190,6 @@ def main():
         print(f"\nVerified reviews: {summary['verified_count']}")
         print(f"Date range: {summary['date_range']['min']} to {summary['date_range']['max']}")
 
-        # Show sample reviews
         print("\n" + "-" * 50)
         print("SAMPLE REVIEWS (most recent)")
         print("-" * 50)
